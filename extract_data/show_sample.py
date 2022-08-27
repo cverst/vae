@@ -14,8 +14,8 @@ def show_sample(tfrecord: str, n_shuffle: int = 1) -> None:
     dataset = load_data.from_tfrecord(tfrecord)
 
     for record in dataset.shuffle(n_shuffle).take(1):
-        img = record["image"].numpy() * 255
-        img = Image.fromarray(img.astype("uint8"))
+        img = record["image"].numpy()
+        img = Image.fromarray(img)
         img.show()
         print(record["name"].numpy())
         print(record["species"].numpy())
