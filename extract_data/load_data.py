@@ -14,13 +14,18 @@ def from_tfrecord(tfrecord: str) -> tf.data.Dataset:
     dataset = tf.data.TFRecordDataset(tfrecord)
 
     # Parse the tfrecord into tensors
-    dataset = dataset.map(lambda x: tf.io.parse_single_example(x, features={
-        "image": tf.io.FixedLenFeature([], tf.string),
-        "name": tf.io.FixedLenFeature([], tf.string),
-        "species": tf.io.FixedLenFeature([], tf.string),
-        "personality": tf.io.FixedLenFeature([], tf.string),
-        "gender": tf.io.FixedLenFeature([], tf.string),
-    }))
+    dataset = dataset.map(
+        lambda x: tf.io.parse_single_example(
+            x,
+            features={
+                "image": tf.io.FixedLenFeature([], tf.string),
+                "name": tf.io.FixedLenFeature([], tf.string),
+                "species": tf.io.FixedLenFeature([], tf.string),
+                "personality": tf.io.FixedLenFeature([], tf.string),
+                "gender": tf.io.FixedLenFeature([], tf.string),
+            },
+        )
+    )
 
     def _decode_image(record):
         record["image"] = tf.image.decode_png(record["image"], channels=4)

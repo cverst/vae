@@ -2,13 +2,13 @@ from PIL import Image
 import load_data
 
 
-def show_sample(tfrecord: str, n_shuffle: int=1) -> None:
-    """Show a sample image and print annotations for an Animal Crossing villagers tfrecord.
+def show_sample(tfrecord: str, n_shuffle: int = 1) -> None:
+    """Show sample image and annotations for an Animal Crossing villagers tfrecord.
 
     Args:
         tfrecord (str): File name or path to tfrecord.
-        n_shuffle (int, optional): Size of shuffle buffer to randomize sample
-            shown. Use n_shuffle=1 for no shuffling. Defaults to 1.
+        n_shuffle (int, optional): Size of shuffle buffer to randomize sample shown.
+            Use n_shuffle=1 for no shuffling. Defaults to 1.
     """
 
     dataset = load_data.from_tfrecord(tfrecord)
@@ -24,7 +24,4 @@ def show_sample(tfrecord: str, n_shuffle: int=1) -> None:
 
 
 if __name__ == "__main__":
-    show_sample(
-        tfrecord="../data/villagers.tfrecord",
-        n_shuffle=50
-    )
+    show_sample(tfrecord="../data/villagers.tfrecord", n_shuffle=50)
