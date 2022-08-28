@@ -20,6 +20,7 @@ class VAE:
         self.inputs = None
         self.conv2d_1 = None
         self.conv2d_2 = None
+        self.conv2d_3 = None
         self.flatten = None
         self.z_mean = None
         self.z_log_sigma = None
@@ -32,6 +33,7 @@ class VAE:
         self.conv2dtranspose_1 = None
         self.conv2dtranspose_2 = None
         self.conv2dtranspose_3 = None
+        self.conv2dtranspose_4 = None
 
         # Model layer; initialized by build_model
         self.outputs = None
@@ -58,7 +60,15 @@ class VAE:
             activation="relu",
             name="Encoder-Conv2D-2",
         )(self.conv2d_1)
-        self.flatten = layers.Flatten(name="Encoder-Flatten")(self.conv2d_2)
+        self.conv2d_3 = layers.Conv2D(
+            filters=128,
+            kernel_size=3,
+            strides=(2, 2),
+            padding="same",
+            activation="relu",
+            name="Encoder-Conv2D-3",
+        )(self.conv2d_2)
+        self.flatten = layers.Flatten(name="Encoder-Flatten")(self.conv2d_3)
 
         # Latent space layer; no activations!
         self.z_mean = layers.Dense(units=self.latent_dim, name="Z-Mean")(self.flatten)
@@ -89,18 +99,19 @@ class VAE:
         )
 
         # Hidden layers: Reshaping
+        target_shape = np.multiply(
+            self.encoder.get_layer("Encoder-Conv2D-3").output_shape[1:], [1, 1, 0.5]
+        ).astype(int)
         self.dense = layers.Dense(
-            units=16 * 16 * 32, activation="relu", name="Decoder-Dense"
-        )(
-            self.latent_inputs
-        )  # HARD CODED, NEEDS TINKERING
+            units=np.product(target_shape), activation="relu", name="Decoder-Dense"
+        )(self.latent_inputs)
         self.reshape = layers.Reshape(
-            target_shape=(16, 16, 32), name="Decoder-Reshape"
+            target_shape=target_shape, name="Decoder-Reshape"
         )(self.dense)
 
         # Hidden layers: Upsampling
         self.conv2dtranspose_1 = layers.Conv2DTranspose(
-            filters=64,
+            filters=128,
             kernel_size=3,
             strides=2,
             padding="same",
@@ -108,7 +119,7 @@ class VAE:
             name="Decoder-Conv2DTranspose-1",
         )(self.reshape)
         self.conv2dtranspose_2 = layers.Conv2DTranspose(
-            filters=32,
+            filters=64,
             kernel_size=3,
             strides=2,
             padding="same",
@@ -116,18 +127,26 @@ class VAE:
             name="Decoder-Conv2DTranspose-2",
         )(self.conv2dtranspose_1)
         self.conv2dtranspose_3 = layers.Conv2DTranspose(
-            filters=3,
+            filters=32,
+            kernel_size=3,
+            strides=2,
+            padding="same",
+            activation="relu",
+            name="Decoder-Conv2DTranspose-3",
+        )(self.conv2dtranspose_2)
+        self.conv2dtranspose_4 = layers.Conv2DTranspose(
+            filters=self.input_shape[2],
             kernel_size=3,
             strides=1,
             padding="same",
-            name="Decoder-Conv2DTranspose-3",
+            name="Decoder-Conv2DTranspose-4",
         )(
-            self.conv2dtranspose_2
+            self.conv2dtranspose_3
         )  # no activation!
 
         # Create decoder model
         self.decoder = models.Model(
-            self.latent_inputs, self.conv2dtranspose_3, name="Decoder"
+            self.latent_inputs, self.conv2dtranspose_4, name="Decoder"
         )
 
     def build_model(self):
@@ -138,12 +157,10 @@ class VAE:
             inputs=self.inputs, outputs=self.outputs, name="VAE-Model"
         )
 
-    def loss_function(self, inputs, outputs):
-        # def loss_function(self):
-        # r_loss = np.product(self.input_shape) * tf.keras.losses.mse(
-        #     self.inputs, self.outputs
-        # )
-        r_loss = np.product(self.input_shape) * tf.keras.losses.mse(inputs, outputs)
+    def loss_function(self):
+        r_loss = np.product(self.input_shape) * tf.keras.losses.mse(
+            self.inputs, self.outputs
+        )
         kl_loss = -0.5 * tf.math.reduce_sum(
             1
             + self.z_log_sigma

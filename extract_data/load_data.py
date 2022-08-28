@@ -29,7 +29,7 @@ def from_tfrecord(tfrecord: str) -> tf.data.Dataset:
 
     def _decode_image(record):
         record["image"] = tf.image.decode_png(record["image"], channels=4)
-        record["image"] = record["image"][:, :, :]
+        record["image"] = record["image"][:, :, :3]
         return record
 
     dataset = dataset.map(_decode_image)
