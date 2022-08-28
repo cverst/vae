@@ -5,3 +5,5 @@ ds = Dataset("./data/villagers.tfrecord")
 
 ds.get_datasets()
 
+ds.get_labels()
+print(ds.labels)
