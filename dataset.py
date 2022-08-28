@@ -98,8 +98,12 @@ class Dataset:
 
         def _encode(record):
             """Operations mapped to dataset"""
-            record["image"] = tf.image.resize(record["image"], image_shape)
-            record["image"] = tf.image.convert_image_dtype(record["image"], tf.float32)
+            record["image"] = tf.image.resize_with_pad(
+                record["image"], image_shape[0], image_shape[1]
+            )
+            record["image"] = (
+                tf.image.convert_image_dtype(record["image"], tf.float32) / 255.0
+            )
             return record
 
         dataset_processed = dataset.map(lambda rec: _encode(rec))
