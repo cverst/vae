@@ -20,6 +20,7 @@ class Dataset:
     def get_datasets(
         self,
         tfrecord_path: str,
+        n_channels: int = 3,
         split: int = 3,
         image_shape: list = [128, 128],
         batch_size: int = 16,
@@ -35,6 +36,8 @@ class Dataset:
         Args:
             tfrecord_path (str): Path to tfrecord file for a dataset where records were
                 created with `tf.data.Dataset.from_tensor_slices()` from a dictionary.
+            n_channels (int, optional): Number of channels to extract: 1 for greyscale,
+                3 for RGB, 4 for RGBA. Defaults to 3.
             split (int, optional): One-in-"split" of images will go into a validate
                 set, `train : validate = (split+1) : 1`. Before splitting the dataset
                 is randomized with a shuffling buffer size of 1024. See also class
@@ -53,7 +56,7 @@ class Dataset:
         self.n_shuffle_train = n_shuffle_train
 
         # Load data from tfrecord
-        dataset = self._load_tfrecord(tfrecord_path)
+        dataset = self._load_tfrecord(tfrecord_path, n_channels=n_channels)
 
         # Preprocess loaded data. Must be done before train-validate split
         dataset_preprocessed = self._preprocess(dataset, self.image_shape)
@@ -71,16 +74,20 @@ class Dataset:
         )
         self.dataset_validate = self.dataset_validate.cache().batch(self.batch_size)
 
-    def _load_tfrecord(self, tfrecord_path: str) -> tf.data.Dataset:
+    def _load_tfrecord(
+        self, tfrecord_path: str, n_channels: int = 3
+    ) -> tf.data.Dataset:
         """Load dataset from tfrecord.
 
         Args:
             tfrecord_path (str): Location of tfrecord to be loaded.
+            n_channels (int, optional): Number of channels to extract: 1 for greyscale,
+                3 for RGB, 4 for RGBA. Defaults to 3.
 
         Returns:
             tf.data.Dataset: Dataset from tfrecord.
         """
-        dataset = from_tfrecord(tfrecord_path)
+        dataset = from_tfrecord(tfrecord_path, n_channels=n_channels)
         return dataset
 
     def _preprocess(

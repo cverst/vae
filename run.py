@@ -1,18 +1,20 @@
 import tensorflow as tf
 from dataset import Dataset
-from rendering import render_samples
+from rendering import render_samples, render_loss
 from vae import VAE
 import numpy as np
 import matplotlib.pyplot as plt
 
+# TODO: documentation of code/model
+
 TFRECORD_PATH = "./data/villagers.tfrecord"
 IMAGE_SHAPE = [64, 64]
-INPUT_SHAPE = [*IMAGE_SHAPE, 3]
+N_CHANNELS = 1
 LATENT_DIM = 1
 
 # Load data
 ds = Dataset()
-ds.get_datasets(TFRECORD_PATH, image_shape=IMAGE_SHAPE)
+ds.get_datasets(TFRECORD_PATH, n_channels=N_CHANNELS, image_shape=IMAGE_SHAPE)
 ds.get_labels()
 
 # Show sample data with labels (written to file)
@@ -23,7 +25,7 @@ ds_train = ds.dataset_train.map(lambda record: record["image"])
 ds_validate = ds.dataset_validate.map(lambda record: record["image"])
 
 # Initialize model
-vae = VAE(input_shape=INPUT_SHAPE, latent_dim=LATENT_DIM)
+vae = VAE(input_shape=[*IMAGE_SHAPE, N_CHANNELS], latent_dim=LATENT_DIM)
 vae.build_model()
 
 # Show model
@@ -31,36 +33,49 @@ print(vae.encoder.summary())
 print(vae.decoder.summary())
 print(vae.model.summary())
 
-# import pdb
+# Compile: add loss and optimizer
+vae.compile_model()
 
-# pdb.set_trace()
-# Add loss and compile
-r_loss = np.product(vae.input_shape) * tf.math.reduce_sum(
-    tf.math.reduce_sum(tf.keras.losses.mse(vae.inputs, vae.outputs), axis=1), axis=1
-)
-kl_loss = -0.5 * tf.math.reduce_sum(
-    1 + vae.z_log_sigma - tf.math.square(vae.z_mean) - tf.math.exp(vae.z_log_sigma),
-    axis=1,
-)
-vae_loss = tf.math.reduce_mean(r_loss + kl_loss)
+# Train model
+history = vae.model.fit(ds_train, epochs=10, validation_data=ds_validate)
 
-vae.model.add_loss(vae_loss)
-vae.model.compile(optimizer="adam")
-
-# Train model and use tensorboard
-history = vae.model.fit(ds_train, epochs=50, validation_data=ds_validate)
+# Show losses
+render_loss(history)
 
 # Visualize latent space
+# TODO: this
 ## training data
 ## generated data
+## animated gif of generated data per training epoch
 
-# Visualize a single white-noise image?
+import pdb
+
+pdb.set_trace()
+
+# Get images and labels in order
+(imgs, annotations) = ds.dataset_validate.map(lambda record: (record["image"], record.pop("image")))
+
+# Use encoder model to encode inputs into a latent space
+imgs_encoded = vae.encoder.predict(imgs)
+
+# Recall that our encoder returns 3 arrays: z-mean, z-log-sigma and z. We plot the values for z
+# Create a scatter plot
+fig = plt.scatter(x=imgs_encoded[2][:, 0], y=np.zeros_like(imgs_encoded[2][:, 0]))
+
+# Set figure title
+# fig.update_layout(title_text="MNIST digit representation in the 2D Latent Space")
+
+# Update marker size
+# fig.update_traces(marker=dict(size=2))
+
+fig.close()
+fig.savefig("embedded.jpg")
 
 
 # Display a 2D manifold of the digits
 if LATENT_DIM == 2:
     n = 8  # figure with 8x8 villagers
-    digit_size = 64
+    digit_size = IMAGE_SHAPE[0]
     figure = np.zeros((digit_size * n, digit_size * n, 3))
 
     # We will sample n points within [-1.5, 1.5] standard deviations
@@ -79,13 +94,15 @@ if LATENT_DIM == 2:
                 :,
             ] = x_decoded
     # Plot figure
+    figure = figure * 255
+    figure = figure.astype("uint8")
     fig = plt.figure(figsize=(16, 16))
     plt.imshow(figure)
     plt.close()
     fig.savefig("test.jpg")
 elif LATENT_DIM == 1:
     n = 8  # figure with 8x8 villagers
-    digit_size = 64
+    digit_size = IMAGE_SHAPE[0]
     figure = np.zeros((digit_size, digit_size * n, 3))
 
     # We will sample n points within [-1.5, 1.5] standard deviations

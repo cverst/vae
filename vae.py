@@ -4,6 +4,8 @@ import numpy as np
 
 
 class VAE:
+    """Convolutional Variational Autoencoder"""
+
     def __init__(self, input_shape: tuple[int] = (128, 128, 3), latent_dim: int = 2):
 
         super().__init__()
@@ -154,12 +156,13 @@ class VAE:
         self._build_decoder()
         self.outputs = self.decoder(self.encoder(self.inputs)[2])
         self.model = models.Model(
-            inputs=self.inputs, outputs=self.outputs, name="VAE-Model"
+            inputs=self.inputs, outputs=self.outputs, name="Convolutional-VAE-Model"
         )
 
-    def loss_function(self):
-        r_loss = np.product(self.input_shape) * tf.keras.losses.mse(
-            self.inputs, self.outputs
+    def compile_model(self):
+        r_loss = np.product(self.input_shape) * tf.math.reduce_sum(
+            tf.math.reduce_sum(tf.keras.losses.mse(self.inputs, self.outputs), axis=1),
+            axis=1,
         )
         kl_loss = -0.5 * tf.math.reduce_sum(
             1
@@ -170,4 +173,5 @@ class VAE:
         )
         vae_loss = tf.math.reduce_mean(r_loss + kl_loss)
 
-        return vae_loss
+        self.model.add_loss(vae_loss)
+        self.model.compile(optimizer="adam")

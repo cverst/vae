@@ -1,11 +1,13 @@
 import tensorflow as tf
 
 
-def from_tfrecord(tfrecord: str) -> tf.data.Dataset:
+def from_tfrecord(tfrecord: str, n_channels: int = 3) -> tf.data.Dataset:
     """Load and parse Animal Crossing villagers tfrecord to create dataset.
 
     Args:
         tfrecord (str): A tfrecord for the Animal Crossing villagers dataset.
+        n_channels (int, optional): Number of channels to extract: 1 for greyscale,
+            3 for RGB, 4 for RGBA. Defaults to 3.
 
     Returns:
         tf.data.Dataset: A tensorflow dataset of Animal Crossing villagers.
@@ -28,8 +30,7 @@ def from_tfrecord(tfrecord: str) -> tf.data.Dataset:
     )
 
     def _decode_image(record):
-        record["image"] = tf.image.decode_png(record["image"], channels=4)
-        record["image"] = record["image"][:, :, :3]
+        record["image"] = tf.image.decode_png(record["image"], channels=n_channels)
         return record
 
     dataset = dataset.map(_decode_image)

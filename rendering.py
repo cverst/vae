@@ -36,3 +36,31 @@ def render_samples(dataset: tf.data.Dataset) -> None:
     plt.close()
 
     fig.savefig(OUTPUT_FILENAME)
+
+
+def render_loss(history: tf.keras.callbacks.History) -> None:
+    """Render training and validation loss and save to file.
+
+    Args:
+        history (tf.keras.callbacks.History): Model training history for which to
+            render loss.
+    """
+
+    OUTPUT_FILENAME = "loss.jpg"
+
+    fig, ax = plt.subplots(figsize=(6, 4), dpi=300)
+    
+    ax.plot(history.history["loss"], label="Train", color="black")
+    ax.plot(history.history["val_loss"], label="Validate", color="red")
+
+    plt.title(label="Model loss by epoch", loc="center")
+    ax.set(xlabel="Epoch", ylabel="Loss")
+    plt.xticks(
+        ticks=list(range(len(history.history["loss"]))),
+        labels=list(range(1, len(history.history["loss"]) + 1)),
+    )
+    plt.legend()
+
+    plt.close()
+
+    fig.savefig(OUTPUT_FILENAME)
