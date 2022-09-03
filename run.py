@@ -11,9 +11,9 @@ import matplotlib.pyplot as plt
 
 TFRECORD_PATH = "./data/villagers.tfrecord"
 IMAGE_SHAPE = [64, 64]
-N_CHANNELS = 3
+N_CHANNELS = 4
 LATENT_DIM = 1
-N_EPOCHS = 25
+N_EPOCHS = 50
 
 # Load data
 ds = Dataset()
@@ -65,52 +65,60 @@ for record in ds.dataset_validate.unbatch().as_numpy_iterator():
     embedded = get_embedding(record)
     embedded_villagers.append(embedded)
 
-# gender = [villager["gender"].decode("utf-8") for villager in embedded_villagers]
-# species = [villager["species"].decode("utf-8") for villager in embedded_villagers]
-# personality = [
-#     villager["personality"].decode("utf-8") for villager in embedded_villagers
-# ]
-# z_values = [villager["embedding"] for villager in embedded_villagers]
-
-
-def to_nearest_half(num):
-    return round(num * 2) / 2
-
-
-# z_min = to_nearest_half(min(z_values))
-# z_max = to_nearest_half(max(z_values))
-
-# from matplotlib import cm
-
-fig = plt.figure(figsize=(6, 4))
-# label = ds.labels["species"]
-# label_encoding = dict(zip(label, list(range(len(label)))))
-# colormap = plt.cm.get_cmap("hsv", len(label))
-
-# # plt.scatter(z_values, [label_encoding[sp] for sp in personality])
-# colors = colormap([label_encoding[sp] for sp in species])
-# z_values = np.array(z_values)
-# plt.scatter(z_values[:, 0], z_values[:, 1], c=colors)
-# plt.scatter(z_values, np.zeros_like(z_values), c=colors)
-
-import pdb
-
-pdb.set_trace()
-
 species = []
+images = []
 z_values = []
 for key in ds.labels["species"]:
-    print(key)
-    species = species.append(key)
-    values = [
+    vals = [
         villager["embedding"]
         for villager in embedded_villagers
-        if villager["species"] == key
+        if villager["species"].decode("utf-8") == key
     ]
-    print(values)
-    if len(values) > 0:
-        z_values = z_values.append(values)
-plt.boxplot(z_values, labels=species)
+    imgs = [
+        villager["image"]
+        for villager in embedded_villagers
+        if villager["species"].decode("utf-8") == key
+    ]
+    if len(vals) > 0:
+        species.append(key)
+        images.append(imgs)
+        z_values.append(vals)
+
+
+# Sort species, z_values, and images by means
+z_means = [np.mean(vals) for vals in z_values]
+species = [x for _, x in sorted(zip(z_means, species))]
+z_values = [x for _, x in sorted(zip(z_means, z_values))]
+images = [x for _, x in sorted(zip(z_means, images))]
+
+# Get images of villagers closest to group means
+idx_closest = [
+    np.argmin(np.abs([v - mn for v in val])) for mn, val in list(zip(z_means, z_values))
+]
+closest_images = [imgs[idx] for idx, imgs in list(zip(idx_closest, images))]
+
+fig = plt.figure(figsize=(12, 8))
+ax1 = plt.subplot(5, 1, (2, 5))
+
+ax1.boxplot(z_values, labels=species, showfliers=False)
+plt.xticks(rotation=90)
+
+SKIP = 3
+n_images = len(idx_closest[::SKIP])
+digit_size = IMAGE_SHAPE[0]
+canvas = np.zeros((digit_size, digit_size * n_images, N_CHANNELS))
+
+# Image zero-coordinate is top left, not bottom left, so invert image order
+for i in range(n_images):
+    canvas[
+        :,
+        i * digit_size : (i + 1) * digit_size,
+        :,
+    ] = closest_images[i * SKIP]
+ax2 = plt.subplot(5, 1, 1)
+ax2.imshow(canvas)
+ax2.set_axis_off()
+
 plt.close()
 fig.savefig("species_along_latent_space.jpg")
 
@@ -168,7 +176,7 @@ if LATENT_DIM == 2:
 elif LATENT_DIM == 1:
     n = 16  # figure with 8x8 villagers
     digit_size = IMAGE_SHAPE[0]
-    figure = np.zeros((digit_size, digit_size * n, 3))
+    figure = np.zeros((digit_size, digit_size * n, 4))
 
     # We will sample n points within [-1.5, 1.5] standard deviations
     grid_x = np.linspace(1.5, -1.5, n)
