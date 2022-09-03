@@ -6,11 +6,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # TODO: documentation of code/model
+# TODO: improve naming
+# TODO: improve calling from command line, allow variables to be passed
 
 TFRECORD_PATH = "./data/villagers.tfrecord"
 IMAGE_SHAPE = [64, 64]
-N_CHANNELS = 1
+N_CHANNELS = 3
 LATENT_DIM = 1
+N_EPOCHS = 25
 
 # Load data
 ds = Dataset()
@@ -37,7 +40,7 @@ print(vae.model.summary())
 vae.compile_model()
 
 # Train model
-history = vae.model.fit(ds_train, epochs=10, validation_data=ds_validate)
+history = vae.model.fit(ds_train, epochs=N_EPOCHS, validation_data=ds_validate)
 
 # Show losses
 render_loss(history)
@@ -48,28 +51,90 @@ render_loss(history)
 ## generated data
 ## animated gif of generated data per training epoch
 
+
+# Make embeddings for validation set
+def get_embedding(record):
+    record["embedding"] = (
+        vae.encoder(np.expand_dims(record["image"], axis=0))[2].numpy().squeeze()
+    )
+    return record
+
+
+embedded_villagers = []
+for record in ds.dataset_validate.unbatch().as_numpy_iterator():
+    embedded = get_embedding(record)
+    embedded_villagers.append(embedded)
+
+# gender = [villager["gender"].decode("utf-8") for villager in embedded_villagers]
+# species = [villager["species"].decode("utf-8") for villager in embedded_villagers]
+# personality = [
+#     villager["personality"].decode("utf-8") for villager in embedded_villagers
+# ]
+# z_values = [villager["embedding"] for villager in embedded_villagers]
+
+
+def to_nearest_half(num):
+    return round(num * 2) / 2
+
+
+# z_min = to_nearest_half(min(z_values))
+# z_max = to_nearest_half(max(z_values))
+
+# from matplotlib import cm
+
+fig = plt.figure(figsize=(6, 4))
+# label = ds.labels["species"]
+# label_encoding = dict(zip(label, list(range(len(label)))))
+# colormap = plt.cm.get_cmap("hsv", len(label))
+
+# # plt.scatter(z_values, [label_encoding[sp] for sp in personality])
+# colors = colormap([label_encoding[sp] for sp in species])
+# z_values = np.array(z_values)
+# plt.scatter(z_values[:, 0], z_values[:, 1], c=colors)
+# plt.scatter(z_values, np.zeros_like(z_values), c=colors)
+
 import pdb
 
 pdb.set_trace()
 
-# Get images and labels in order
-(imgs, annotations) = ds.dataset_validate.map(lambda record: (record["image"], record.pop("image")))
+species = []
+z_values = []
+for key in ds.labels["species"]:
+    print(key)
+    species = species.append(key)
+    values = [
+        villager["embedding"]
+        for villager in embedded_villagers
+        if villager["species"] == key
+    ]
+    print(values)
+    if len(values) > 0:
+        z_values = z_values.append(values)
+plt.boxplot(z_values, labels=species)
+plt.close()
+fig.savefig("species_along_latent_space.jpg")
 
-# Use encoder model to encode inputs into a latent space
-imgs_encoded = vae.encoder.predict(imgs)
 
-# Recall that our encoder returns 3 arrays: z-mean, z-log-sigma and z. We plot the values for z
-# Create a scatter plot
-fig = plt.scatter(x=imgs_encoded[2][:, 0], y=np.zeros_like(imgs_encoded[2][:, 0]))
+# # Get images and labels in order
+# (imgs, annotations) = ds.dataset_validate.map(
+#     lambda record: (record["image"], record.pop("image"))
+# )
 
-# Set figure title
-# fig.update_layout(title_text="MNIST digit representation in the 2D Latent Space")
+# # Use encoder model to encode inputs into a latent space
+# imgs_encoded = vae.encoder.predict(imgs)
 
-# Update marker size
-# fig.update_traces(marker=dict(size=2))
+# # Recall that our encoder returns 3 arrays: z-mean, z-log-sigma and z. We plot the values for z
+# # Create a scatter plot
+# fig = plt.scatter(x=imgs_encoded[2][:, 0], y=np.zeros_like(imgs_encoded[2][:, 0]))
 
-fig.close()
-fig.savefig("embedded.jpg")
+# # Set figure title
+# # fig.update_layout(title_text="MNIST digit representation in the 2D Latent Space")
+
+# # Update marker size
+# # fig.update_traces(marker=dict(size=2))
+
+# fig.close()
+# fig.savefig("embedded.jpg")
 
 
 # Display a 2D manifold of the digits
@@ -101,12 +166,13 @@ if LATENT_DIM == 2:
     plt.close()
     fig.savefig("test.jpg")
 elif LATENT_DIM == 1:
-    n = 8  # figure with 8x8 villagers
+    n = 16  # figure with 8x8 villagers
     digit_size = IMAGE_SHAPE[0]
     figure = np.zeros((digit_size, digit_size * n, 3))
 
     # We will sample n points within [-1.5, 1.5] standard deviations
     grid_x = np.linspace(1.5, -1.5, n)
+    # grid_x = np.linspace(z_max, z_min, n)
 
     for i, yi in enumerate(grid_x):
         z_sample = np.array([yi])

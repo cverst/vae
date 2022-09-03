@@ -141,10 +141,11 @@ class VAE:
             kernel_size=3,
             strides=1,
             padding="same",
+            activation="tanh",
             name="Decoder-Conv2DTranspose-4",
         )(
             self.conv2dtranspose_3
-        )  # no activation!
+        )
 
         # Create decoder model
         self.decoder = models.Model(
