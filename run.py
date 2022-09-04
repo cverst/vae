@@ -1,9 +1,14 @@
-import tensorflow as tf
 from dataset import Dataset
-from rendering import render_samples, render_loss
+from rendering import (
+    render_samples,
+    # render_loss,
+    render_loss_from_lists,
+    visualize_1d,
+    visualize_2d,
+    render_manifold,
+)
 from vae import VAE
-import numpy as np
-import matplotlib.pyplot as plt
+from PIL import Image
 
 # TODO: documentation of code/model
 # TODO: improve naming
@@ -13,7 +18,8 @@ TFRECORD_PATH = "./data/villagers.tfrecord"
 IMAGE_SHAPE = [64, 64]
 N_CHANNELS = 4
 LATENT_DIM = 1
-N_EPOCHS = 50
+N_EPOCHS = 600
+EPOCH_STEP = 1
 
 # Load data
 ds = Dataset()
@@ -39,164 +45,48 @@ print(vae.model.summary())
 # Compile: add loss and optimizer
 vae.compile_model()
 
-# Train model
-history = vae.model.fit(ds_train, epochs=N_EPOCHS, validation_data=ds_validate)
+# Train model and visualize
 
-# Show losses
-render_loss(history)
+# Method 1: Train all epochs at once
+# Need ca. 500 epochs for full training
+# history = vae.model.fit(ds_train, epochs=N_EPOCHS, validation_data=ds_validate)
+# render_loss(history)
 
-# Visualize latent space
-# TODO: this
-## training data
-## generated data
-## animated gif of generated data per training epoch
+# Method 2: Train epoch by epoch and make movie of training
+current_epoch = 0
+movie_stack = []
+loss = []
+val_loss = []
 
+for i in list(range(1, N_EPOCHS + 1, EPOCH_STEP)):
 
-# Make embeddings for validation set
-def get_embedding(record):
-    record["embedding"] = (
-        vae.encoder(np.expand_dims(record["image"], axis=0))[2].numpy().squeeze()
-    )
-    return record
+    # Train
+    print(f"Epoch: {current_epoch}")
+    history = vae.model.fit(ds_train, epochs=EPOCH_STEP, validation_data=ds_validate)
+    loss += history.history["loss"]
+    val_loss += history.history["val_loss"]
 
+    # Append current view of manifold to image stack after removing alpha channel and replacing with white
+    frame = render_manifold(vae, IMAGE_SHAPE[0], N_CHANNELS, movie=True)
+    transparancy_mask = frame[:, :, 3] == 0
+    frame[transparancy_mask] = [255, 255, 255, 255]
+    frame = frame[:, :, :3]
+    movie_stack.append(Image.fromarray(frame))
+    current_epoch += EPOCH_STEP
 
-embedded_villagers = []
-for record in ds.dataset_validate.unbatch().as_numpy_iterator():
-    embedded = get_embedding(record)
-    embedded_villagers.append(embedded)
+movie_stack[0].save(
+    f"output/manifold_training_{LATENT_DIM}d.gif",
+    save_all=True,
+    append_images=movie_stack[1:],
+    optimize=False,
+    duration=10,
+)
 
-species = []
-images = []
-z_values = []
-for key in ds.labels["species"]:
-    vals = [
-        villager["embedding"]
-        for villager in embedded_villagers
-        if villager["species"].decode("utf-8") == key
-    ]
-    imgs = [
-        villager["image"]
-        for villager in embedded_villagers
-        if villager["species"].decode("utf-8") == key
-    ]
-    if len(vals) > 0:
-        species.append(key)
-        images.append(imgs)
-        z_values.append(vals)
+render_loss_from_lists(loss, val_loss, f"_{LATENT_DIM}")
 
+if LATENT_DIM == 1:
+    visualize_1d(vae, ds.dataset_validate, ds.labels)
+elif LATENT_DIM == 2:
+    visualize_2d(vae, ds.dataset_validate, ds.labels)
 
-# Sort species, z_values, and images by means
-z_means = [np.mean(vals) for vals in z_values]
-species = [x for _, x in sorted(zip(z_means, species))]
-z_values = [x for _, x in sorted(zip(z_means, z_values))]
-images = [x for _, x in sorted(zip(z_means, images))]
-
-# Get images of villagers closest to group means
-idx_closest = [
-    np.argmin(np.abs([v - mn for v in val])) for mn, val in list(zip(z_means, z_values))
-]
-closest_images = [imgs[idx] for idx, imgs in list(zip(idx_closest, images))]
-
-fig = plt.figure(figsize=(12, 8))
-ax1 = plt.subplot(5, 1, (2, 5))
-
-ax1.boxplot(z_values, labels=species, showfliers=False)
-plt.xticks(rotation=90)
-
-SKIP = 3
-n_images = len(idx_closest[::SKIP])
-digit_size = IMAGE_SHAPE[0]
-canvas = np.zeros((digit_size, digit_size * n_images, N_CHANNELS))
-
-# Image zero-coordinate is top left, not bottom left, so invert image order
-for i in range(n_images):
-    canvas[
-        :,
-        i * digit_size : (i + 1) * digit_size,
-        :,
-    ] = closest_images[i * SKIP]
-ax2 = plt.subplot(5, 1, 1)
-ax2.imshow(canvas)
-ax2.set_axis_off()
-
-plt.close()
-fig.savefig("species_along_latent_space.jpg")
-
-
-# # Get images and labels in order
-# (imgs, annotations) = ds.dataset_validate.map(
-#     lambda record: (record["image"], record.pop("image"))
-# )
-
-# # Use encoder model to encode inputs into a latent space
-# imgs_encoded = vae.encoder.predict(imgs)
-
-# # Recall that our encoder returns 3 arrays: z-mean, z-log-sigma and z. We plot the values for z
-# # Create a scatter plot
-# fig = plt.scatter(x=imgs_encoded[2][:, 0], y=np.zeros_like(imgs_encoded[2][:, 0]))
-
-# # Set figure title
-# # fig.update_layout(title_text="MNIST digit representation in the 2D Latent Space")
-
-# # Update marker size
-# # fig.update_traces(marker=dict(size=2))
-
-# fig.close()
-# fig.savefig("embedded.jpg")
-
-
-# Display a 2D manifold of the digits
-if LATENT_DIM == 2:
-    n = 8  # figure with 8x8 villagers
-    digit_size = IMAGE_SHAPE[0]
-    figure = np.zeros((digit_size * n, digit_size * n, 3))
-
-    # We will sample n points within [-1.5, 1.5] standard deviations
-    grid_x = np.linspace(1.5, -1.5, n)
-    grid_y = np.linspace(-1.5, 1.5, n)
-
-    for i, yi in enumerate(grid_x):
-        for j, xi in enumerate(grid_y):
-            z_sample = np.array([[xi, yi]])
-            # Generate an image using a decoder model
-            x_decoded = vae.decoder.predict(z_sample)
-
-            figure[
-                i * digit_size : (i + 1) * digit_size,
-                j * digit_size : (j + 1) * digit_size,
-                :,
-            ] = x_decoded
-    # Plot figure
-    figure = figure * 255
-    figure = figure.astype("uint8")
-    fig = plt.figure(figsize=(16, 16))
-    plt.imshow(figure)
-    plt.close()
-    fig.savefig("test.jpg")
-elif LATENT_DIM == 1:
-    n = 16  # figure with 8x8 villagers
-    digit_size = IMAGE_SHAPE[0]
-    figure = np.zeros((digit_size, digit_size * n, 4))
-
-    # We will sample n points within [-1.5, 1.5] standard deviations
-    grid_x = np.linspace(1.5, -1.5, n)
-    # grid_x = np.linspace(z_max, z_min, n)
-
-    for i, yi in enumerate(grid_x):
-        z_sample = np.array([yi])
-        # Generate an image using a decoder model
-        x_decoded = vae.decoder.predict(z_sample)
-
-        figure[
-            :,
-            i * digit_size : (i + 1) * digit_size,
-            :,
-        ] = x_decoded
-    # Plot figure
-    figure = figure * 255
-    figure = figure.astype("uint8")
-    fig = plt.figure(figsize=(15, 4))
-    plt.imshow(figure)
-    plt.axis("off")
-    plt.close()
-    fig.savefig("test.jpg")
+render_manifold(vae, IMAGE_SHAPE[0], N_CHANNELS)

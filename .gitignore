@@ -130,6 +130,9 @@ dmypy.json
 
 # Data folders
 /data
+/output
 
 # Other
 *.jpg
+*.gif
+*.pat
