@@ -1,4 +1,6 @@
 import json
+import argparse
+import os
 
 
 def parse_json(source_file: str, target_file: str) -> None:
@@ -41,11 +43,28 @@ def parse_json(source_file: str, target_file: str) -> None:
         # Save to file, make it pretty, and preserve special characters
         with open(target_file, "w") as f:
             json.dump(villagers, f, indent=4, ensure_ascii=False)
-            print("Saved to json.")
+            print(f"File parsed and saved to '{target_file}'.")
 
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("source", help="Path to ACNH villagers JSON source file.")
+    parser.add_argument(
+        "--target",
+        default="../data/annotations/animal-crossing-villagers-parsed.json",
+        help="Path to JSON target file.",
+    )
+    args = parser.parse_args()
+
+    if args.target == "../data/villagers.tfrecord":
+        PATH = "../data"
+        path_exists = os.path.exists(PATH)
+        if not path_exists:
+            os.makedirs(PATH)
+            print("New data directory created.")
+
     parse_json(
-        source_file="../data/annotations/animal-crossing-villagers.json",
-        target_file="../data/annotations/animal-crossing-villagers-parsed.json",
+        source_file=args.source,
+        target_file=args.target,
     )

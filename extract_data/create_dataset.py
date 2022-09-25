@@ -1,6 +1,8 @@
+from __future__ import annotations
 import os
 import tensorflow as tf
 import json
+import argparse
 
 
 def create_dataset(
@@ -92,8 +94,31 @@ def create_dataset(
 
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("images", help="Path to folder with ACNH images.")
+    parser.add_argument(
+        "--annotations",
+        default="../data/annotations/animal-crossing-villagers-parsed.json",
+        help="Path to parsed ACNH villagers JSON file.",
+    )
+    parser.add_argument(
+        "--target", default="../data/villagers.tfrecord", help="Path tfrecord location."
+    )
+    args = parser.parse_args()
+
+    if (
+        args.annotations == "../data/annotations/animal-crossing-villagers-parsed.json"
+        or args.target == "../data/villagers.tfrecord"
+    ):
+        PATH = "../data"
+        path_exists = os.path.exists(PATH)
+        if not path_exists:
+            os.makedirs(PATH)
+            print("New data directory created.")
+
     create_dataset(
-        images_folder="../data/images/",
-        annotations_file="../data/annotations/animal-crossing-villagers-parsed.json",
-        target_tfrecord="../data/villagers.tfrecord",
+        images_folder=args.images,
+        annotations_file=args.annotations,
+        target_tfrecord=args.target,
     )

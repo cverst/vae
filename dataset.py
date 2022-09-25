@@ -160,7 +160,7 @@ class Dataset:
         return dataset_train, dataset_validate
 
     def get_labels(self) -> None:
-        """Extract labels from dataset and store in attribute `labels` (may take long)."""
+        """Extract labels from dataset and store in attribute `labels`."""
 
         # Make sure dataset_train and dataset_validate are available
         assert (

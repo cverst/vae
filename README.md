@@ -7,3 +7,13 @@ We need to download two datasets from Kaggle:
 The dataset is too small to encode any colors. We therefore use a greyscale version of the images.
 The dataset is small, which means we must limit the number of laten variables. Two is too much in most of the latent space, one has a more continuous laten space.
 ReLU in final layer works better than sigmoid
+
+
+python parse_json.py ../data/annotations/animal-crossing-villagers.json --target ../data/annotations/animal-crossing-villagers-parsed.json
+
+python create_dataset.py ../data/images/ --annotations ../data/annotations/animal-crossing-villagers-parsed.json --target ../data/villagers.tfrecord
+
+python show_sample.py --source ../data/villagers.tfrecord --n_shuffle 1
+
+
+python run.py --tfrecord_path ./data/villagers.tfrecord --image_shape 64 64 --n_channels 1 --latent_dim 4 --n_epochs 2 --epoch_step 1

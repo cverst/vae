@@ -1,5 +1,6 @@
 from PIL import Image
 import load_data
+import argparse
 
 
 def show_sample(tfrecord: str, n_shuffle: int = 1) -> None:
@@ -24,4 +25,17 @@ def show_sample(tfrecord: str, n_shuffle: int = 1) -> None:
 
 
 if __name__ == "__main__":
-    show_sample(tfrecord="../data/villagers.tfrecord", n_shuffle=50)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--source", default="../data/villagers.tfrecord", help="Path to tfrecord."
+    )
+    parser.add_argument(
+        "--n_shuffle",
+        default=16,
+        type=int,
+        help="Size of shuffle buffer. Must be greater than or equal to 1.",
+    )
+    args = parser.parse_args()
+
+    show_sample(tfrecord=args.source, n_shuffle=args.n_shuffle)

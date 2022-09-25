@@ -1,92 +1,172 @@
+import os
 from dataset import Dataset
 from rendering import (
     render_samples,
-    # render_loss,
-    render_loss_from_lists,
+    remove_alpha,
+    render_loss,
     visualize_1d,
     visualize_2d,
     render_manifold,
+    walk_across_latent_space_1d,
 )
 from vae import VAE
 from PIL import Image
+import argparse
 
-# TODO: documentation of code/model
+
+# TODO: Write readme and blog post
 # TODO: improve naming
 # TODO: improve calling from command line, allow variables to be passed
 
-TFRECORD_PATH = "./data/villagers.tfrecord"
-IMAGE_SHAPE = [64, 64]
-N_CHANNELS = 4
-LATENT_DIM = 1
-N_EPOCHS = 600
-EPOCH_STEP = 1
 
-# Load data
-ds = Dataset()
-ds.get_datasets(TFRECORD_PATH, n_channels=N_CHANNELS, image_shape=IMAGE_SHAPE)
-ds.get_labels()
+def run(
+    tfrecord_path: str,
+    image_shape: list,
+    n_channels: int,
+    latent_dim: int,
+    n_epochs: int,
+    epoch_step: int,
+) -> None:
+    """Wrapper to train ACNH villager VAE and render results.
 
-# Show sample data with labels (written to file)
-render_samples(ds.dataset_train.unbatch())
+    Args:
+        tfrecord_path (str): Location of ACNH tfrecord file.
+        image_shape (list): Image shape to use for dataset and model.
+        n_channels (int): Number of channels to use from images. Must be 3 or 4.
+        latent_dim (int): Number of latent distributions to use for VAE.
+        n_epochs (int): Number of epochs to train model.
+        epoch_step (int): Step size between consecutive reconstructed images
+            in video of decoded latent-space results.
+    """
 
-# For model training get datasets with images only
-ds_train = ds.dataset_train.map(lambda record: record["image"])
-ds_validate = ds.dataset_validate.map(lambda record: record["image"])
+    assert n_channels in [
+        3,
+        4,
+    ], f"Number of channels must be 3 or 4, but it is {n_channels}."
 
-# Initialize model
-vae = VAE(input_shape=[*IMAGE_SHAPE, N_CHANNELS], latent_dim=LATENT_DIM)
-vae.build_model()
+    # Create folder for all output images
+    PATH = "./output"
+    path_exists = os.path.exists(PATH)
+    if not path_exists:
+        os.makedirs(PATH)
+        print("New output directory created.")
 
-# Show model
-print(vae.encoder.summary())
-print(vae.decoder.summary())
-print(vae.model.summary())
+    # Load data
+    ds = Dataset()
+    ds.get_datasets(tfrecord_path, n_channels=n_channels, image_shape=image_shape)
+    ds.get_labels()
 
-# Compile: add loss and optimizer
-vae.compile_model()
+    # Show sample data with labels (written to file)
+    render_samples(ds.dataset_train.unbatch())
 
-# Train model and visualize
+    # For model training use datasets with images only
+    ds_train = ds.dataset_train.map(lambda record: record["image"])
+    ds_validate = ds.dataset_validate.map(lambda record: record["image"])
 
-# Method 1: Train all epochs at once
-# Need ca. 500 epochs for full training
-# history = vae.model.fit(ds_train, epochs=N_EPOCHS, validation_data=ds_validate)
-# render_loss(history)
+    # Initialize model
+    vae = VAE(input_shape=[*image_shape, n_channels], latent_dim=latent_dim)
+    vae.build_model()
 
-# Method 2: Train epoch by epoch and make movie of training
-current_epoch = 0
-movie_stack = []
-loss = []
-val_loss = []
+    # Show model
+    print(vae.encoder.summary())
+    print(vae.decoder.summary())
+    print(vae.model.summary())
 
-for i in list(range(1, N_EPOCHS + 1, EPOCH_STEP)):
+    # Compile: add loss and optimizer
+    vae.compile_model()
 
-    # Train
-    print(f"Epoch: {current_epoch}")
-    history = vae.model.fit(ds_train, epochs=EPOCH_STEP, validation_data=ds_validate)
-    loss += history.history["loss"]
-    val_loss += history.history["val_loss"]
+    # Train model and visualize
 
-    # Append current view of manifold to image stack after removing alpha channel and replacing with white
-    frame = render_manifold(vae, IMAGE_SHAPE[0], N_CHANNELS, movie=True)
-    transparancy_mask = frame[:, :, 3] == 0
-    frame[transparancy_mask] = [255, 255, 255, 255]
-    frame = frame[:, :, :3]
-    movie_stack.append(Image.fromarray(frame))
-    current_epoch += EPOCH_STEP
+    # Method 1: Train all epochs at once, no movie
+    # history = vae.model.fit(ds_train, epochs=N_EPOCHS, validation_data=ds_validate)
+    # render_loss(history)
 
-movie_stack[0].save(
-    f"output/manifold_training_{LATENT_DIM}d.gif",
-    save_all=True,
-    append_images=movie_stack[1:],
-    optimize=False,
-    duration=10,
-)
+    # Method 2: Train epoch by epoch and make movie of training
+    current_epoch = 0
+    movie_stack = []
+    loss = []
+    val_loss = []
 
-render_loss_from_lists(loss, val_loss, f"_{LATENT_DIM}")
+    for i in list(range(1, n_epochs + 1, epoch_step)):
 
-if LATENT_DIM == 1:
-    visualize_1d(vae, ds.dataset_validate, ds.labels)
-elif LATENT_DIM == 2:
-    visualize_2d(vae, ds.dataset_validate, ds.labels)
+        # Train
+        print(f"Epoch: {current_epoch}")
+        history = vae.model.fit(
+            ds_train, epochs=epoch_step, validation_data=ds_validate
+        )
+        loss += history.history["loss"]
+        val_loss += history.history["val_loss"]
 
-render_manifold(vae, IMAGE_SHAPE[0], N_CHANNELS)
+        # Append current view of manifold to image stack after removing alpha channel and replacing with white
+        frame = render_manifold(vae, image_shape[0], n_channels, to_movie=True)
+        if n_channels == 4:
+            frame = remove_alpha(frame)
+        movie_stack.append(Image.fromarray(frame))
+        current_epoch += epoch_step
+
+    movie_stack[0].save(
+        f"output/manifold_training_{latent_dim}d.gif",
+        save_all=True,
+        append_images=movie_stack[1:],
+        optimize=False,
+        duration=10,
+    )
+
+    # Create renderings of training results
+    render_loss([loss, val_loss], f"_{latent_dim}")
+
+    if latent_dim == 1:
+        visualize_1d(vae, ds.dataset_validate, ds.labels)
+        walk_across_latent_space_1d(vae)
+    elif latent_dim == 2:
+        visualize_2d(vae, ds.dataset_validate, ds.labels)
+
+    render_manifold(vae, image_shape[0], n_channels)
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--tfrecord_path",
+        default="./data/villagers.tfrecord",
+        help="Path to ACNH dataset tfrecord location.",
+    )
+    parser.add_argument(
+        "--image_shape",
+        default=[64, 64],
+        type=int,
+        nargs=2,
+        help="Two values defining image shape for model, e.g., `64 64`.",
+    )
+    parser.add_argument(
+        "--n_channels",
+        default=4,
+        type=int,
+        help="Number of channels to use from png images. Must be 3, or 4.",
+    )
+    parser.add_argument(
+        "--latent_dim",
+        default=2,
+        type=int,
+        help="Number of latent dimensions to use for VAE.",
+    )
+    parser.add_argument(
+        "--n_epochs", default=2000, type=int, help="Number of epochs to train VAE."
+    )
+    parser.add_argument(
+        "--epoch_step",
+        default=1,
+        type=int,
+        help="Step size between consecutive reconstructed images in video of decoded latent-space results.",
+    )
+    args = parser.parse_args()
+
+    run(
+        tfrecord_path=args.tfrecord_path,
+        image_shape=args.image_shape,
+        n_channels=args.n_channels,
+        latent_dim=args.latent_dim,
+        n_epochs=args.n_epochs,
+        epoch_step=args.epoch_step,
+    )

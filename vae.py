@@ -6,7 +6,9 @@ import numpy as np
 class VAE:
     """Convolutional Variational Autoencoder"""
 
-    def __init__(self, input_shape: tuple[int] = (128, 128, 3), latent_dim: int = 2):
+    def __init__(
+        self, input_shape: tuple[int] = (128, 128, 3), latent_dim: int = 2
+    ) -> None:
 
         super().__init__()
 
@@ -40,7 +42,12 @@ class VAE:
         # Model layer; initialized by build_model
         self.outputs = None
 
-    def _build_encoder(self):
+    def _build_encoder(self) -> None:
+        """Build encoder part.
+
+        The encoder uses three convolutional layers before entering the final
+        bottleneck of size model.latent_dim.
+        """
 
         # Input layer
         self.inputs = Input(shape=self.input_shape, name="Input")
@@ -86,21 +93,30 @@ class VAE:
             self.inputs, [self.z_mean, self.z_log_sigma, self.z], name="Encoder"
         )
 
-    def _sampling(self, args):
+    def _sampling(self, args: list) -> list:
+        """Sampling of latent distributions.
+
+        Args:
+            args (list): Distribution parameters in the form of [z_mean, z_log_sigma].
+
+        Returns:
+            list: Sampled vector.
+        """
         z_mean, z_log_sigma = args
         epsilon = tf.random.normal(
             shape=(tf.shape(z_mean)[0], self.latent_dim), mean=0.0, stddev=1.0
         )
         return z_mean + tf.math.exp(z_log_sigma) * epsilon
 
-    def _build_decoder(self):
+    def _build_decoder(self) -> None:
+        """Build decoder part."""
 
         # Input layer
         self.latent_inputs = Input(
             shape=(self.latent_dim,), name="Input-from-Z-Sampling"
         )
 
-        # Hidden layers: Reshaping
+        # Hidden layers: reshaping
         target_shape = np.multiply(
             self.encoder.get_layer("Encoder-Conv2D-3").output_shape[1:], [1, 1, 0.5]
         ).astype(int)
@@ -111,7 +127,7 @@ class VAE:
             target_shape=target_shape, name="Decoder-Reshape"
         )(self.dense)
 
-        # Hidden layers: Upsampling
+        # Hidden layers: upsampling
         self.conv2dtranspose_1 = layers.Conv2DTranspose(
             filters=128,
             kernel_size=3,
@@ -150,7 +166,9 @@ class VAE:
             self.latent_inputs, self.conv2dtranspose_4, name="Decoder"
         )
 
-    def build_model(self):
+    def build_model(self) -> None:
+        """Connect encoder and decoder to create full model."""
+
         self._build_encoder()
         self._build_decoder()
         self.outputs = self.decoder(self.encoder(self.inputs)[2])
@@ -158,7 +176,10 @@ class VAE:
             inputs=self.inputs, outputs=self.outputs, name="Convolutional-VAE-Model"
         )
 
-    def compile_model(self):
+    def compile_model(self) -> None:
+        """Compile model after creating loss function."""
+
+        # Loss based on MSE and Kullback-Leibler divergence
         r_loss = np.product(self.input_shape) * tf.math.reduce_sum(
             tf.math.reduce_sum(tf.keras.losses.mse(self.inputs, self.outputs), axis=1),
             axis=1,
