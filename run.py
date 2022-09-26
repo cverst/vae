@@ -155,12 +155,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--latent_dim",
-        default=2,
+        default=1,
         type=int,
         help="Number of latent dimensions to use for VAE.",
     )
     parser.add_argument(
-        "--n_epochs", default=2000, type=int, help="Number of epochs to train VAE."
+        "--n_epochs", default=500, type=int, help="Number of epochs to train VAE."
     )
     parser.add_argument(
         "--epoch_step",
