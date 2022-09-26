@@ -1,5 +1,9 @@
 # vae
 
+install python 3.9
+install requirements
+use virtual environment of choice, example here using conda
+
 We need to download two datasets from Kaggle:
 1. [A JSON file with metadata and annotations for villagers](https://www.kaggle.com/datasets/nookipedia/animal-crossing-series-villagers)
 2. [Image files for 492 villagers](https://www.kaggle.com/datasets/jahysama/animal-crossing-new-horizons-all-villagers)
@@ -17,3 +21,9 @@ python show_sample.py --source ../data/villagers.tfrecord --n_shuffle 1
 
 
 python run.py --tfrecord_path ./data/villagers.tfrecord --image_shape 64 64 --n_channels 1 --latent_dim 4 --n_epochs 2 --epoch_step 1
+
+
+used three convolutional layers. though other models might have better performance, this worked good enough
+
+overfitting for 2d latent space, see eamples and real images
+1d latent space worked better

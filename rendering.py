@@ -284,15 +284,11 @@ def visualize_2d(vae_model: VAE, dataset: tf.data.Dataset, labels: defaultdict) 
     fig.savefig("./output/species_manifold_2d.jpg")
 
 
-def render_manifold(
-    vae_model: VAE, image_size: int, n_channels: int, to_movie: bool = False
-) -> Union[np.array, None]:
+def render_manifold(vae_model: VAE, to_movie: bool = False) -> Union[np.array, None]:
     """Render decoded latent space
 
     Args:
         vae_model (VAE): Instance of the VAE-model class.
-        image_size (int): _description_
-        n_channels (int): _description_
         to_movie (bool, optional): _description_. Defaults to False.
 
     Returns:
@@ -306,6 +302,9 @@ def render_manifold(
     assert (
         vae_model.input_shape[0] == vae_model.input_shape[1]
     ), f"Input model must have square input shape, but the input shape is {vae_model.input_shape[:2]}."
+
+    image_size = vae_model.input_shape[0]
+    n_channels = vae_model.input_shape[2]
 
     if vae_model.latent_dim == 1:
         SAMPLE_STD = 2
@@ -386,7 +385,11 @@ def walk_across_latent_space_1d(vae_model: VAE) -> None:
         frame = frame.astype("uint8")
         if vae_model.input_shape[2] == 4:
             frame = remove_alpha(frame)
-        movie_stack.append(Image.fromarray(frame))
+            movie_stack.append(Image.fromarray(frame))
+        elif vae_model.input_shape[2] == 1:
+            movie_stack.append(Image.fromarray(frame).convert("P"))
+        else:
+            movie_stack.append(Image.fromarray(frame))
 
     # Save as movie
     movie_stack[0].save(

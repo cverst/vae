@@ -32,7 +32,8 @@ def run(
     Args:
         tfrecord_path (str): Location of ACNH tfrecord file.
         image_shape (list): Image shape to use for dataset and model.
-        n_channels (int): Number of channels to use from images. Must be 3 or 4.
+        n_channels (int): Number of channels to use from images. Must be 1, 3,
+            or 4.
         latent_dim (int): Number of latent distributions to use for VAE.
         n_epochs (int): Number of epochs to train model.
         epoch_step (int): Step size between consecutive reconstructed images
@@ -40,6 +41,7 @@ def run(
     """
 
     assert n_channels in [
+        1,
         3,
         4,
     ], f"Number of channels must be 3 or 4, but it is {n_channels}."
@@ -98,10 +100,16 @@ def run(
         val_loss += history.history["val_loss"]
 
         # Append current view of manifold to image stack after removing alpha channel and replacing with white
-        frame = render_manifold(vae, image_shape[0], n_channels, to_movie=True)
+        frame = render_manifold(vae, to_movie=True)
         if n_channels == 4:
             frame = remove_alpha(frame)
-        movie_stack.append(Image.fromarray(frame))
+            movie_stack.append(Image.fromarray(frame))
+        elif n_channels == 1:
+            frame = frame.squeeze()
+            movie_stack.append(Image.fromarray(frame).convert("P"))
+        else:
+            movie_stack.append(Image.fromarray(frame))
+
         current_epoch += epoch_step
 
     movie_stack[0].save(
@@ -121,7 +129,7 @@ def run(
     elif latent_dim == 2:
         visualize_2d(vae, ds.dataset_validate, ds.labels)
 
-    render_manifold(vae, image_shape[0], n_channels)
+    render_manifold(vae)
 
 
 if __name__ == "__main__":
@@ -143,7 +151,7 @@ if __name__ == "__main__":
         "--n_channels",
         default=4,
         type=int,
-        help="Number of channels to use from png images. Must be 3, or 4.",
+        help="Number of channels to use from png images. Must be 1, 3, or 4.",
     )
     parser.add_argument(
         "--latent_dim",
