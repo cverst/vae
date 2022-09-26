@@ -285,14 +285,15 @@ def visualize_2d(vae_model: VAE, dataset: tf.data.Dataset, labels: defaultdict) 
 
 
 def render_manifold(vae_model: VAE, to_movie: bool = False) -> Union[np.array, None]:
-    """Render decoded latent space
+    """Render decoded latent space.
 
     Args:
         vae_model (VAE): Instance of the VAE-model class.
-        to_movie (bool, optional): _description_. Defaults to False.
+        to_movie (bool, optional): Output canvas to use for creation of movie.
+            Defaults to False.
 
     Returns:
-        Union[np.array, None]: _description_
+        Union[np.array, None]: Optionally returned canvas.
     """
 
     assert (

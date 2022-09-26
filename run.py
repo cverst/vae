@@ -44,7 +44,7 @@ def run(
         1,
         3,
         4,
-    ], f"Number of channels must be 3 or 4, but it is {n_channels}."
+    ], f"Number of channels must be 1, 3, or 4, but it is {n_channels}."
 
     # Create folder for all output images
     PATH = "./output"
