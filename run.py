@@ -14,11 +14,6 @@ from PIL import Image
 import argparse
 
 
-# TODO: Write readme and blog post
-# TODO: improve naming
-# TODO: improve calling from command line, allow variables to be passed
-
-
 def run(
     tfrecord_path: str,
     image_shape: list,

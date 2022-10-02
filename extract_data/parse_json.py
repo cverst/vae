@@ -57,8 +57,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    if args.target == "../data/villagers.tfrecord":
-        PATH = "../data"
+    if args.target == "../data/annotations/animal-crossing-villagers-parsed.json":
+        PATH = "../data/annotations"
         path_exists = os.path.exists(PATH)
         if not path_exists:
             os.makedirs(PATH)

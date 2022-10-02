@@ -107,7 +107,7 @@ With the information of the blogs mentioned in [1. Description](#description) in
 ### Example data
 We will first take a look at a sample of our dataset. We see colorful animals of different species, gender, and personality. The shape of a villagar, mostly associated with its species, seems the most prominent feature. This prominence will be emphasized by the results of our modeling as shown in the sections below.
 
-![Samples from the Animal Crossing villager dataset](/images/samples.jpg)
+![Samples from the Animal Crossing villager dataset](/readme_images/samples.jpg)
 
 ### Note on model architecture
 In this repository we opt for convolutional layers because we work with image data with multiple color channels. Moreover we try to use settings that create a somewhat gradual decrease in features towards the bottleneck. In contrast, many other VAE examples use only fully connected layers. As a consequence of the convolutional layers, our example may increase the risk of overfitting.
@@ -126,36 +126,36 @@ We start with training a VAE with the following parameters:
 
 As a first result, we take a look at training and validation loss.
 
-![Training and validation loss for a 2D latent space](/images/loss_2d.jpg)
+![Training and validation loss for a 2D latent space](/readme_images/loss_2d.jpg)
 
 As we keep training our model we can see that the training loss keeps decreasing, whereas the validation loss seems to level off. So here we see a first hint of overtraining.
 
 With our model trained we can take a look at how well defined and regularized (see [here](https://towardsdatascience.com/understanding-variational-autoencoders-vaes-f70510919f73)) our latent space actually is. We plot the 2D embeddings of our validation set in the latent space. You obtain this representation by processing our images with the encoder only.
 
-![Validation images on a 2D manifold](/images/species_manifold_2d.jpg)
+![Validation images on a 2D manifold](/readme_images/species_manifold_2d.jpg)
 
 As you can see in the legend we used different colors for different species. In general, animals from the same species were relatively close to one another, so that requirement on the latent space was met. However, the overall spread of our embeddings is quite high, up to about 15 standard deviations from the mean. We can take a final look at this first model by sampling from our latent space. We first make a raster of coordinates of our latent variables across our latent space and then process each coordinate with our decoder. This way we can create new data and at the same time see how our latent space behaves.
 
-![Images generated from 2D latent space](/images/reconstructed_images_2d.jpg)
+![Images generated from 2D latent space](/readme_images/reconstructed_images_2d.jpg)
 
 We can clearly see how different species would map to our 2D latent space. At the same time we see some nonsense data, in the middle on the right, an indication of poor regularization. Moreover, we see some images that strongly resemble some of our training images. For instance, the bottom row contains two examples that are nearly identical to the following two training images.
 
-![Agent S](/images/Agent_S.png)
-![Peanut](/images/Peanut.png)
+![Agent S](/readme_images/Agent_S.png)
+![Peanut](/readme_images/Peanut.png)
 
 Clearly, our model is overfitting. With a 2D latent space our model has too much capacity for a dataset as small as ours. The number of latent distributions should be smaller for smaller datasets and can only be bigger for bigger datasets!
 
 ### VAE with 1D latent space
 In an attempt to remove overfitting we reduced the latent space to a single latent distribution. Looking at the training and validation loss we do not see clear overfitting as with a model with a 2D latent space.
 
-![Training and validation loss for a 1D latent space](/images/loss_1d.jpg)
+![Training and validation loss for a 1D latent space](/readme_images/loss_1d.jpg)
 
 We are skipping the look at the embedded validations set here and immediately take a look at the decoded latent space.
 
-![Images generated from 1D latent space](/images/reconstructed_images_1d.jpg)
+![Images generated from 1D latent space](/readme_images/reconstructed_images_1d.jpg)
 
 From left to right we can see a rabbit, flamingo, bear, kangaroo, horse, pig, dog, deer, unknown/hamster/tiger, duck/frog, mouse, and koala. Although we lost some of the color of the 2D representation, the latent space is continuous and seemingly denser information. We also do not see samples from our training set in our generated data. These changes indicate better regularization of the latent space.
 
 Finally we create a movie where we walk through the latent space "from left to right." This movie shows a seamless transition from one generated villager to the next. It looks like we will go from species to species, but only because the villager shape defined by their species is such a dominant feature in the dataset.
 
-![Walk across 1D latent space](/images/walk_across_latent_space_1d.gif)
+![Walk across 1D latent space](/readme_images/walk_across_latent_space_1d.gif)
